@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 
-import { KoreaderDeviceDirectoryModule } from '../../common/koreader-devices/koreader-device-directory.module';
 import { BookModule } from '../book/book.module';
 import { AchievementModule } from '../achievement/achievement.module';
 import { LibraryModule } from '../library/library.module';
@@ -18,7 +17,7 @@ import { AnnotationSyncService } from './annotation-sync.service';
 import { DevicePositionRebuilderRegistry } from './device-position-rebuilder';
 
 @Module({
-  imports: [BookModule, AchievementModule, PositionConverterModule, LibraryModule, KoreaderDeviceDirectoryModule],
+  imports: [BookModule, AchievementModule, PositionConverterModule, LibraryModule],
   controllers: [AnnotationController, AnnotationHubController],
   providers: [
     AnnotationService,

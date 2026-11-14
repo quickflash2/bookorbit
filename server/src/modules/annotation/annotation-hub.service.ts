@@ -12,8 +12,6 @@ import type {
   AnnotationSyncDetail,
 } from '@bookorbit/types';
 import { ANNOTATION_PURGE_PENDING_DEVICE_SYNC } from '@bookorbit/types';
-import { KoreaderDeviceDirectoryService, type KoreaderDeviceDescription } from '../../common/koreader-devices/koreader-device-directory.service';
-import { EXCHANGE_DEVICE_ID_PREFIX } from '../../common/utils/koreader-exchange-device.utils';
 import type { RequestUser } from '../../common/types/request-user';
 import { sanitizeLogValue } from '../../common/utils/log-sanitize.utils';
 import { BookService } from '../book/book.service';
@@ -50,31 +48,7 @@ export class AnnotationHubService {
     private readonly rebuilderRegistry: DevicePositionRebuilderRegistry,
     private readonly libraryService: LibraryService,
     private readonly bookService: BookService,
-    private readonly koreaderDevices: KoreaderDeviceDirectoryService,
   ) {}
-
-  /**
-   * Names each synced device the way its owner knows it: a Kobo by its own name, a KOReader device by
-   * the name given to it and its model. KOReader exchange rows are keyed per book, so they are only
-   * named when `bookId` says which book's hashes to rebuild them from.
-   */
-  private async deviceLabels(userId: number, devices: readonly { source: string; deviceId: string }[], bookId?: number) {
-    const koboIds = devices.filter((device) => device.source === 'kobo' && /^\d+$/.test(device.deviceId)).map((device) => Number(device.deviceId));
-    const koreaderIds = devices.filter((device) => device.source === 'koreader').map((device) => device.deviceId);
-    const [koboNames, koreaderDevices, exchangeDevices] = await Promise.all([
-      this.syncRepo.findKoboDeviceNames(koboIds),
-      this.koreaderDevices.describeDevices(
-        userId,
-        koreaderIds.filter((id) => !id.startsWith(EXCHANGE_DEVICE_ID_PREFIX)),
-      ),
-      bookId === undefined ? new Map<string, KoreaderDeviceDescription>() : this.koreaderDevices.describeExchangeDevices(userId, bookId, koreaderIds),
-    ]);
-    return (device: { source: string; deviceId: string }): { deviceName: string | null; deviceModel: string | null } => {
-      if (device.source === 'kobo') return { deviceName: koboNames.get(device.deviceId) ?? null, deviceModel: null };
-      const koreader = device.source === 'koreader' ? (koreaderDevices.get(device.deviceId) ?? exchangeDevices.get(device.deviceId)) : undefined;
-      return { deviceName: koreader?.name ?? null, deviceModel: koreader?.model ?? null };
-    };
-  }
 
   // Highlights on books the user can no longer open (library access revoked, content rules) stay
   // stored but leave the hub, as they leave the Notebook; they come back with the access.
@@ -141,7 +115,8 @@ export class AnnotationHubService {
     ]);
 
     const weeks = foldActivityWeeks(weekRows);
-    const labelDevice = await this.deviceLabels(userId, deviceRows);
+    const koboIds = deviceRows.filter((row) => row.source === 'kobo' && /^\d+$/.test(row.deviceId)).map((row) => Number(row.deviceId));
+    const koboNames = await this.syncRepo.findKoboDeviceNames(koboIds);
 
     return {
       total,
@@ -166,7 +141,7 @@ export class AnnotationHubService {
       devices: deviceRows.map((row) => ({
         source: row.source,
         deviceId: row.deviceId,
-        ...labelDevice(row),
+        deviceName: row.source === 'kobo' ? (koboNames.get(row.deviceId) ?? null) : null,
         annotations: Number(row.annotations),
         behind: Number(row.behind),
         lastSyncedAt: (row.lastSyncedAt ?? new Date()).toISOString(),
@@ -264,7 +239,8 @@ export class AnnotationHubService {
       this.syncRepo.findStatesByAnnotation(annotationId, userId),
     ]);
 
-    const labelDevice = await this.deviceLabels(userId, stateRows, annotation.bookId);
+    const koboDeviceIds = stateRows.filter((state) => state.source === 'kobo' && /^\d+$/.test(state.deviceId)).map((state) => Number(state.deviceId));
+    const koboNames = await this.syncRepo.findKoboDeviceNames(koboDeviceIds);
 
     const positions: AnnotationPositionInfo[] = positionRows.map((row) => ({
       format: row.format as AnnotationPositionFormat,
@@ -277,7 +253,7 @@ export class AnnotationHubService {
     const devices: AnnotationDeviceSyncInfo[] = stateRows.map((state) => ({
       source: state.source as AnnotationDeviceSyncInfo['source'],
       deviceId: state.deviceId,
-      ...labelDevice(state),
+      deviceName: state.source === 'kobo' ? (koboNames.get(state.deviceId) ?? null) : null,
       lastAppliedVersion: state.lastAppliedVersion,
       upToDate: annotation.deletedAt ? state.deleteAckedAt != null : state.lastAppliedVersion >= annotation.version,
       deleteAckedAt: state.deleteAckedAt ? state.deleteAckedAt.toISOString() : null,

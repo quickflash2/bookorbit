@@ -7,6 +7,7 @@ vi.mock('@/lib/api', () => ({
 }))
 
 import { api } from '@/lib/api'
+import { setI18nLocale } from '@/i18n'
 import { useAchievements } from '../composables/useAchievements'
 
 const mockApi = vi.mocked(api)
@@ -61,8 +62,9 @@ function mountComposable() {
 }
 
 describe('useAchievements', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks()
+    await setI18nLocale('en')
   })
 
   it('fetches achievements on mount', async () => {
@@ -75,6 +77,22 @@ describe('useAchievements', () => {
     expect(categories.value).toHaveLength(1)
     expect(totalEarned.value).toBe(2)
     expect(totalAvailable.value).toBe(49)
+  })
+
+  it('localizes achievement text and reacts to locale changes', async () => {
+    mockApi.mockResolvedValue(mockResponse(MOCK_CATALOGUE))
+    await setI18nLocale('zh')
+    const { categories } = mountComposable()
+
+    await flushPromises()
+    expect(categories.value[0]?.label).toBe('阅读')
+    expect(categories.value[0]?.achievements[0]?.name).toBe('初染墨香')
+    expect(categories.value[0]?.achievements[0]?.description).toBe('读完第一本书')
+
+    await setI18nLocale('en')
+    expect(categories.value[0]?.label).toBe('Reading')
+    expect(categories.value[0]?.achievements[0]?.name).toBe('Ink Initiate')
+    expect(categories.value[0]?.achievements[0]?.description).toBe('Finish your first book')
   })
 
   it('sets error on failure', async () => {

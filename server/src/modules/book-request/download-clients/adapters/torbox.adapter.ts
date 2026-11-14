@@ -427,14 +427,7 @@ export class TorboxAdapter implements DownloadClientAdapter {
         const location = response.headers.get('location');
         if (response.body) await response.body.cancel().catch(() => undefined);
         if (!location) throw new Error('The TorBox download link redirected without a location');
-        const target = new URL(location, current);
-        // The CDN link carries its auth token in the query string, and a relative Location drops it.
-        // A same-origin redirect that states no query of its own still needs that token, so carry it
-        // across; a cross-origin hop is left untouched so the token never leaves TorBox's origin.
-        if (target.origin === current.origin && target.search === '' && current.search !== '') {
-          target.search = current.search;
-        }
-        current = this.ensureSecureTransport(await ensureSafeUrl(target.href, { allowPrivate: false }));
+        current = this.ensureSecureTransport(await ensureSafeUrl(new URL(location, current).href, { allowPrivate: false }));
         continue;
       }
 

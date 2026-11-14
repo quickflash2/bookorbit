@@ -10,7 +10,7 @@ import { PositionConverterService } from '../position-converter/position-convert
 import type { BookmarkAckBookDto, BookmarkExchangeAckDto, BookmarkExchangeBookDto, BookmarkExchangeDto, KoreaderBookmarkDto } from './dto';
 import { KoreaderBookmarkRepository } from './koreader-bookmark.repository';
 import { KoreaderRepository } from './koreader.repository';
-import { exchangeDeviceId } from '../../common/utils/koreader-exchange-device.utils';
+import { exchangeDeviceId } from './koreader-exchange-device';
 
 const EXCHANGE_EVENT = 'koreader.bookmark_exchange';
 const ACK_EVENT = 'koreader.bookmark_exchange_ack';

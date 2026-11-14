@@ -27,11 +27,6 @@ import { bookFiles, books, koreaderSessionTombstones, readingSessionSyncCursors,
 type Db = NodePgDatabase<typeof schema>;
 type Tx = Parameters<Parameters<Db['transaction']>[0]>[0];
 
-export interface BookReadingSessionPage extends BookReadingSessionListResponse {
-  /** Stored session id of each listed KOReader session, by row id. Internal: never sent to clients. */
-  koreaderSessionIds: Map<number, string>;
-}
-
 const MIN_READING_SESSION_SECONDS = 10;
 
 // The column is a free varchar, so anything unexpected reads as plain reading rather than leaking
@@ -492,7 +487,7 @@ export class ReadingSessionRepository {
     dateTo?: string,
     format?: string,
     timeZone = 'UTC',
-  ): Promise<BookReadingSessionPage> {
+  ): Promise<BookReadingSessionListResponse> {
     const conditions = [eq(readingSessions.bookId, bookId), eq(readingSessions.userId, userId)];
     if (dateFrom) conditions.push(gte(readingSessions.startedAt, new Date(dateFrom)));
     if (dateTo) conditions.push(lte(readingSessions.startedAt, new Date(dateTo)));
@@ -531,7 +526,6 @@ export class ReadingSessionRepository {
           source: readingSessions.source,
           attemptId: readingSessions.attemptId,
           sessionType: readingSessions.sessionType,
-          sessionId: readingSessions.sessionId,
         })
         .from(readingSessions)
         .leftJoin(bookFiles, eq(bookFiles.id, readingSessions.bookFileId))
@@ -670,9 +664,7 @@ export class ReadingSessionRepository {
       sessionType: toReadingSessionType(r.sessionType),
     }));
 
-    const koreaderSessionIds = new Map(rows.filter((r) => r.source === 'koreader').map((r) => [r.id, r.sessionId]));
-
-    return { items, total, page, pageSize, stats, koreaderSessionIds };
+    return { items, total, page, pageSize, stats };
   }
 
   async deleteSessionByBook(userId: number, bookId: number, sessionId: number, timeZone = 'UTC'): Promise<{ found: boolean }> {
