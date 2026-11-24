@@ -29,6 +29,12 @@ describe('serverText', () => {
     expect(serverText('de', 'achievements.books_finished_2.name', 'Spine Scout')).toBe('Spine Scout');
     expect(serverText('de', 'achievements.books_finished_3.name', 'Story Stalwart')).toBe('Story Stalwart');
   });
+
+  it('returns simplified Chinese achievement text to native clients', () => {
+    expect(serverText('zh', 'achievements.books_finished_1.name', 'Ink Initiate')).toBe('初染墨香');
+    expect(serverText('zh', 'achievements.early_bird.name', 'Early Bird')).toBe('早起书虫');
+    expect(serverText('zh', 'achievementCategories.reading', 'Reading')).toBe('阅读');
+  });
 });
 
 describe('the English source catalog', () => {
